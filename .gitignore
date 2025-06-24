@@ -2,3 +2,8 @@ __pycache__/
 .ipnyb_checkpoints
 .ipnyb_checkpoints/*
 notebooks/.ipnyb_checkpoints/*
+
+libs
+libs/*
+
+startup.sh
