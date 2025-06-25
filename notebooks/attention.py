@@ -1,6 +1,7 @@
 import whisper
 
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import seaborn as sns
 
 import torch
@@ -15,7 +16,7 @@ from tqdm import tqdm
 from typing import Optional
 from functools import lru_cache
 
-import notebooks.audio_utils as audio
+import audio_utils as audio
 
 @lru_cache
 def init(device: str = "cuda", size: str = "tiny.en") -> tuple:
@@ -75,6 +76,54 @@ def plot_attns(attns: Tensor, rows: int, cols: int,
 
     if filename:
         plt.savefig(filename)
+    plt.show()
+
+@lru_cache
+def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
+                          vmin: float = 0.0, vmax: float = 1.0,
+                          figsize: Optional[tuple] = None, cmap: str = "viridis",
+                          filename: Optional[str] = None) -> None:
+    """
+    Plot the attention maps in a grid
+    """
+    assert rows * cols == attns.size(0)
+    attns_list = [a.cpu().squeeze(0) for a in attns]
+    
+    if not figsize:
+        figsize = (cols * 10, rows * 10)
+    
+    fig, ax = plt.subplots(rows, cols, figsize=figsize)
+    pbar = tqdm(range(attns.size(0)), leave=True, ncols=0)
+    
+    for idx in pbar:
+        i, j = idx // cols, idx % cols
+        sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
+        ax[i][j].set_title(f"Iter {idx + 1}")
+        pbar.refresh()
+
+    if filename:
+        plt.savefig(filename)
+    plt.show()
+
+@lru_cache
+def plot_attns_iters_anim(attns: Tensor,
+                          vmin: float = 0.0, vmax: float = 1.0,
+                          figsize: Optional[tuple] = None, cmap: str = "viridis",
+                          filename: Optional[str] = None) -> None:
+    """
+    Plot the attention maps in a grid
+    """
+    attns_list = [a.cpu().squeeze(0) for a in attns]
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    def update(frame):
+        hm = sns.heatmap(attns_list[frame, :, :], cmap="viridis", ax=ax, vmin=vmin, vmax=vmax)
+        ax.set_title(f"Iter {idx + 1}")
+
+    if filename:
+        plt.savefig(filename)
+        
+    anim = animation.FuncAnimation(fig=fig, func=update, frames=attns.size(0), interval=30)
     plt.show()
 
 def get_spikes(attn: Tensor, lim: float) -> tuple:
