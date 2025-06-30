@@ -15,6 +15,7 @@ from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from tqdm import tqdm
 from typing import Optional
 from functools import lru_cache
+from IPython.display import HTML
 
 import audio_utils as audio
 
@@ -105,26 +106,25 @@ def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
         plt.savefig(filename)
     plt.show()
 
-@lru_cache
-def plot_attns_iters_anim(attns: Tensor,
+def plot_attns_iters_anim(attns,
                           vmin: float = 0.0, vmax: float = 1.0,
-                          figsize: Optional[tuple] = None, cmap: str = "viridis",
-                          filename: Optional[str] = None) -> None:
+                          figsize: tuple = (5, 5), cmap: str = "viridis",
+                          interval: int = 500) -> None:
     """
     Plot the attention maps in a grid
     """
     attns_list = [a.cpu().squeeze(0) for a in attns]
     fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(attns_list[0], ax=ax, cmap="viridis", vmin=vmin, vmax=vmax)
     
     def update(frame):
-        hm = sns.heatmap(attns_list[frame, :, :], cmap="viridis", ax=ax, vmin=vmin, vmax=vmax)
-        ax.set_title(f"Iter {idx + 1}")
+        ax.collections[-1].colorbar.remove()
+        hm = sns.heatmap(attns_list[frame], ax=ax, cmap="viridis", vmin=vmin, vmax=vmax)
+        ax.set_title(f"Iter {frame + 1}")
+        return hm
 
-    if filename:
-        plt.savefig(filename)
-        
-    anim = animation.FuncAnimation(fig=fig, func=update, frames=attns.size(0), interval=30)
-    plt.show()
+    anim = animation.FuncAnimation(fig=fig, func=update, frames=attns.size(0), interval=interval, repeat=False)
+    return HTML(anim.to_jshtml())
 
 def get_spikes(attn: Tensor, lim: float) -> tuple:
     """
@@ -138,7 +138,7 @@ def get_spikes(attn: Tensor, lim: float) -> tuple:
     return indices, seconds
 
 @lru_cache
-def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6), filename: str = None) -> None:
+def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6), filename: str = None, draw_on_mel: bool = True) -> None:
     """
     PLot the attention map, waveform and log mel spectrograms and indicate attention spikes on waveform
     """
@@ -166,6 +166,8 @@ def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6
     
     bigax = fig.add_subplot(gs[1, :])
     bigax.imshow(whisper.log_mel_spectrogram(audio), origin="lower")
+    if draw_on_mel:
+        bigax.vlines(seconds / 16_000 * 100, 0, 79, color="r")
     bigax.set_title("Log Mel Spectrogram")
     bigax.set_xlabel("Seconds (ms)")
     
