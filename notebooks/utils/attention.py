@@ -17,7 +17,7 @@ from typing import Optional
 from functools import lru_cache
 from IPython.display import HTML
 
-import audio_utils as audio
+from . import audio
 
 @lru_cache
 def init(device: str = "cuda", size: str = "tiny.en") -> tuple:
@@ -177,3 +177,6 @@ def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6
         plt.savefig(filename)
     plt.tight_layout()
     plt.show()
+    
+if __name__ == "__main__":
+    print(f"{__file__} compilable!")
