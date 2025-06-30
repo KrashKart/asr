@@ -1,8 +1,8 @@
 __pycache__/
-.ipnyb_checkpoints
-.ipnyb_checkpoints/*
-notebooks/.ipnyb_checkpoints
-notebooks/.ipnyb_checkpoints/*
+.ipynb_checkpoints
+.ipynb_checkpoints/*
+notebooks/.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/*
 
 libs
 libs/*
