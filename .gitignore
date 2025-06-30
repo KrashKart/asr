@@ -1,12 +1,18 @@
-__pycache__/*
-.ipynb_checkpoints/
-.ipynb_checkpoints/*
-code/.ipynb_checkpoints
-code/.ipynb_checkpoints/*
-code/tensors/*
+.bash_history
+.cache/
+.ipython/
+.jupyter/
+.local/
+.ssh/
+~
+
+**/__pycache__/
+
+**/.ipynb_checkpoints/
+
+code/tensors/
 
 libs/
-libs/*
 runs/
 snippets/
 tedlium/
