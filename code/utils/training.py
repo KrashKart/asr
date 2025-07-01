@@ -1,4 +1,5 @@
 import whisper
+from whisper.audio import N_SAMPLES, N_FRAMES
 
 import torch
 from torch import Tensor
@@ -19,7 +20,7 @@ def audio_to_mel_batch(audio_batch: Tensor) -> Tensor:
     return torch.stack([audio_to_mel(audio) for audio in audio_batch])
 
 def mel_to_logits_batch(model: whisper.model.Whisper, mel_batch: Tensor, sot_ids: Tensor) -> Tensor:
-    sot_ids = sot_ids.unsqueeze(0).expand(mel_batch.size(0), -1).to(device)
+    sot_ids = sot_ids.unsqueeze(0).expand(mel_batch.size(0), -1).to(model.device)
     return model.forward(mel_batch, sot_ids)
 
 def get_loss_batch(logits: Tensor, token_id: Tensor) -> Tensor:

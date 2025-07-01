@@ -79,32 +79,32 @@ def plot_attns(attns: Tensor, rows: int, cols: int,
         plt.savefig(filename)
     plt.show()
 
-@lru_cache
-def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
-                          vmin: float = 0.0, vmax: float = 1.0,
-                          figsize: Optional[tuple] = None, cmap: str = "viridis",
-                          filename: Optional[str] = None) -> None:
-    """
-    Plot the attention maps in a grid
-    """
-    assert rows * cols == attns.size(0)
-    attns_list = [a.cpu().squeeze(0) for a in attns]
+# @lru_cache
+# def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
+#                           vmin: float = 0.0, vmax: float = 1.0,
+#                           figsize: Optional[tuple] = None, cmap: str = "viridis",
+#                           filename: Optional[str] = None) -> None:
+#     """
+#     Plot the attention maps in a grid
+#     """
+#     assert rows * cols == attns.size(0)
+#     attns_list = [a.cpu().squeeze(0) for a in attns]
     
-    if not figsize:
-        figsize = (cols * 10, rows * 10)
+#     if not figsize:
+#         figsize = (cols * 10, rows * 10)
     
-    fig, ax = plt.subplots(rows, cols, figsize=figsize)
-    pbar = tqdm(range(attns.size(0)), leave=True, ncols=0)
+#     fig, ax = plt.subplots(rows, cols, figsize=figsize)
+#     pbar = tqdm(range(attns.size(0)), leave=True, ncols=0)
     
-    for idx in pbar:
-        i, j = idx // cols, idx % cols
-        sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
-        ax[i][j].set_title(f"Iter {idx + 1}")
-        pbar.refresh()
+#     for idx in pbar:
+#         i, j = idx // cols, idx % cols
+#         sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
+#         ax[i][j].set_title(f"Iter {idx + 1}")
+#         pbar.refresh()
 
-    if filename:
-        plt.savefig(filename)
-    plt.show()
+#     if filename:
+#         plt.savefig(filename)
+#     plt.show()
 
 def plot_attns_iters_anim(attns,
                           vmin: float = 0.0, vmax: float = 1.0,

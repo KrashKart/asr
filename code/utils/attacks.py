@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 
+import torch
+import torch.nn.functional as F
+
 """
 every attack preparation method must:
 1. inherit from PrepareMethod (an abstract class)
@@ -29,8 +32,8 @@ class PrepareMethod(ABC):
         pass
 
 class PrepareFront(PrepareMethod):
-    def __init__(self):
-        super().__init__((1, 10240), "prepare_front")
+    def __init__(self, snippet_size=(1, 10240)):
+        super().__init__(snippet_size, "prepare_front")
     
     def __call__(self, snippet, example):
         self.check_dims(snippet, example)
@@ -38,8 +41,8 @@ class PrepareFront(PrepareMethod):
         return torch.cat([snippet, example], dim=1)
 
 class PrepareOverlay(PrepareMethod):
-    def __init__(self):
-        super().__init__((1, 480_000), "prepare_overlay")
+    def __init__(self, snippet_size=(1, 480_000)):
+        super().__init__(snipper_size, "prepare_overlay")
     
     def __call__(self, snippet, example):
         self.check_dims(snippet, example)
@@ -58,8 +61,8 @@ class PrepareOverlayFront(PrepareMethod):
         return snippet + example
                          
 class PrepareFrontMu(PrepareMethod):
-    def __init__(self):
-        super().__init__((1, 480_000), "prepare_overlay_mu")
+    def __init__(self, snippet_size=(1, 480_000)):
+        super().__init__(snippet_size, "prepare_front_mu")
     
     def __call__(self, snippet, example):
         self.check_dims(snippet, example)
@@ -68,8 +71,8 @@ class PrepareFrontMu(PrepareMethod):
         return mu_law(torch.cat([snippet, example], dim=1))
                          
 class PrepareOverlayMu(PrepareMethod):
-    def __init__(self):
-        super().__init__((1, 480_000), "prepare_overlay_mu")
+    def __init__(self, snippet_size=(1, 480_000)):
+        super().__init__(snippet_size, "prepare_overlay_mu")
     
     def __call__(self, snippet, example):
         self.check_dims(snippet, example)
