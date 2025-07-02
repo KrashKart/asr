@@ -40,6 +40,16 @@ class PrepareFront(PrepareMethod):
         snippet = snippet.repeat(example.size(0), 1)
         return torch.cat([snippet, example], dim=1)
 
+class PrepareAtPosition(PrepareMethod):
+    def __init__(self, snippet_size=(1, 10240), position=0):
+        super().__init__(snippet_size, "prepare_at_position")
+        self.position = position
+        
+    def __call__(self, snippet, example):
+        self.check_dims(snippet, example)
+        snippet = snippet.repeat(example.size(0), 1)
+        return torch.cat([example[:, :self.position], snippet, example[:, self.position:]], dim=1)
+
 class PrepareOverlay(PrepareMethod):
     def __init__(self, snippet_size=(1, 480_000)):
         super().__init__(snipper_size, "prepare_overlay")

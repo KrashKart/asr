@@ -40,14 +40,14 @@ def inference(audio_tensor, model, processor, skip_special_tokens=False) -> tupl
     input_features = inputs.input_features.to(model.device)
     
     # Generation and decoding
-    res = model.generate(input_features, return_token_timestamps=True, output_attentions=True, return_dict_in_generate=True)
+    res = model.generate(input_features, return_token_timestamps=True, output_attentions=True, output_hidden_states=True, return_dict_in_generate=True)
     decoded = processor.decode(res.sequences.squeeze(), skip_special_tokens=skip_special_tokens)
     
     # Token timestamps
     list_of_tokens = [processor.decode(r, skip_special_tokens=skip_special_tokens) for r in res.sequences.squeeze()]
     timestamps = list(zip(list_of_tokens, res.token_timestamps.squeeze().tolist()))
     
-    return (decoded, timestamps, res.encoder_attentions, res.decoder_attentions, res.cross_attentions)
+    return (decoded, res, timestamps, res.encoder_attentions, res.decoder_attentions, res.cross_attentions)
 
 @lru_cache
 def plot_attns(attns: Tensor, rows: int, cols: int, 
