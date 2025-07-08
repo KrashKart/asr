@@ -254,7 +254,7 @@ def forward(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, prepar
     loss = get_loss_batch(logits_valid, target_id)
     return loss
 
-def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: PrepareMethod, test_dataset: Dataset, clamp_ep: float, position: tuple):
+def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: PrepareMethod, test_dataset: DataLoader, clamp_ep: float, position: tuple):
     print(f"Clamp: {clamp_ep}\nPrepare Method: {prepare_method.name}\nSnippet Size: {prepare_method.snippet_size}\nPosition: {position}")
     empty_counter = 0
     char_counter = 0
