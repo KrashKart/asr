@@ -134,7 +134,7 @@ def plot_attns_iters_anim(attns,
         # ax.collections[-1].colorbar.remove()
         hm.collections[0].set_array(attns[frame, :, :])
         return hm
-
+    fig.tight_layout()
     anim = animation.FuncAnimation(fig=fig, func=update, frames=attns.size(0), interval=interval, repeat=False)
     return HTML(anim.to_jshtml()), anim
 
