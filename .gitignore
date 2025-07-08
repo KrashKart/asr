@@ -19,3 +19,7 @@ tedlium/
 graphs/
 
 startup.sh
+
+*.mp4
+*.avi
+*.pt
