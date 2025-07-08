@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 """
 every attack preparation method must:
@@ -18,7 +19,7 @@ class PrepareMethod(ABC):
         self.snippet_size = snippet_size
         self.name = name
     
-    def check_dims(self, snippet, example, desired_dims=2):
+    def check_dims(self, snippet: Tensor, example: Tensor, desired_dims: int = 2):
         offenders = ""
         if len(snippet.shape) != desired_dims:
             offenders += f"Need snippet (dims {len(snippet.shape)}, shape {snippet.shape}) to be of dims {desired_dims}\n"
@@ -28,7 +29,7 @@ class PrepareMethod(ABC):
             raise ValueError(offenders.strip())
     
     @abstractmethod
-    def __call__(self, snippet, example):
+    def __call__(self, snippet: Tensor, example: Tensor):
         pass
 
 class PrepareFront(PrepareMethod):

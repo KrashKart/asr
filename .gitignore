@@ -4,6 +4,7 @@
 .jupyter/
 .local/
 .ssh/
+.npm/
 ~
 
 **/__pycache__/
