@@ -79,53 +79,66 @@ def plot_attns(attns: Tensor, rows: int, cols: int,
         plt.savefig(filename)
     plt.show()
 
-# @lru_cache
-# def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
-#                           vmin: float = 0.0, vmax: float = 1.0,
-#                           figsize: Optional[tuple] = None, cmap: str = "viridis",
-#                           filename: Optional[str] = None) -> None:
-#     """
-#     Plot the attention maps in a grid
-#     """
-#     assert rows * cols == attns.size(0)
-#     attns_list = [a.cpu().squeeze(0) for a in attns]
+@lru_cache
+def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
+                          vmin: float = 0.0, vmax: float = 1.0,
+                          figsize: Optional[tuple] = None, cmap: str = "viridis",
+                          filename: Optional[str] = None) -> None:
+    """
+    Plot the attention maps in a grid
+    """
+    assert rows * cols == attns.size(0)
+    attns_list = [a.cpu().squeeze(0) for a in attns]
     
-#     if not figsize:
-#         figsize = (cols * 10, rows * 10)
+    if not figsize:
+        figsize = (cols * 10, rows * 10)
     
-#     fig, ax = plt.subplots(rows, cols, figsize=figsize)
-#     pbar = tqdm(range(attns.size(0)), leave=True, ncols=0)
+    fig, ax = plt.subplots(rows, cols, figsize=figsize)
+    pbar = tqdm(range(attns.size(0)), leave=True, ncols=0)
     
-#     for idx in pbar:
-#         i, j = idx // cols, idx % cols
-#         sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
-#         ax[i][j].set_title(f"Iter {idx + 1}")
-#         pbar.refresh()
+    for idx in pbar:
+        i, j = idx // cols, idx % cols
+        sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
+        ax[i][j].set_title(f"Iter {idx + 1}")
+        pbar.refresh()
 
-#     if filename:
-#         plt.savefig(filename)
-#     plt.show()
+    if filename:
+        plt.savefig(filename)
+    plt.show()
+    
+@lru_cache
+def smoothen(frames, factor=5):
+    result = []
+    for i in range(frames.size(0)):
+        if i != 0:
+            step_diff = (frames[i, :, :] - frames[i - 1, :, :]) / (factor - 1)
+            for j in range(factor - 1):
+                result.append(frames[i - 1, :, :] + j * step_diff)
+        result.append(frames[i, :, :])
+    assert len(result) == (frames.size(0) - 1) * factor + 1
+    return torch.stack(result)
 
+@lru_cache
 def plot_attns_iters_anim(attns,
                           vmin: float = 0.0, vmax: float = 1.0,
                           figsize: tuple = (5, 5), cmap: str = "viridis",
                           interval: int = 500) -> None:
     """
-    Plot the attention maps in a grid
+    Plot the attention maps over iterations as animation
     """
-    attns_list = [a.cpu().squeeze(0) for a in attns]
+    attns = attns.squeeze().cpu()
     fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(attns_list[0], ax=ax, cmap="viridis", vmin=vmin, vmax=vmax)
-    
+    hm = sns.heatmap(attns[0,:,:], cmap=cmap, vmin=vmin, vmax=vmax, ax=ax)
+
     def update(frame):
-        ax.collections[-1].colorbar.remove()
-        hm = sns.heatmap(attns_list[frame], ax=ax, cmap="viridis", vmin=vmin, vmax=vmax)
-        ax.set_title(f"Iter {frame + 1}")
+        # ax.collections[-1].colorbar.remove()
+        hm.collections[0].set_array(attns[frame, :, :])
         return hm
 
     anim = animation.FuncAnimation(fig=fig, func=update, frames=attns.size(0), interval=interval, repeat=False)
-    return HTML(anim.to_jshtml())
+    return HTML(anim.to_jshtml()), anim
 
+@lru_cache
 def get_spikes(attn: Tensor, lim: float) -> tuple:
     """
     Return the indices and timestamps that cause spikes in attention
