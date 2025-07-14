@@ -1,6 +1,7 @@
 import gc, traceback, datetime
 import whisper
 from whisper.audio import N_SAMPLES, N_FRAMES
+from whisper.decoding import TokenDecoder, GreedyDecoder
 from whisper.tokenizer import get_tokenizer
 
 import torch
@@ -48,7 +49,7 @@ def _get_ids(model: whisper.model.Whisper) -> tuple:
 # Train, validation, test
 ################################
 
-def train(model: whisper.model.Whisper,
+def train(model: whisper.model.Whisper, forwardMethod,
             train_data: DataLoader, valid_data: DataLoader,
             prepare_method: PrepareMethod,
             writer: Optional[SummaryWriter] = None,
@@ -76,12 +77,15 @@ def train(model: whisper.model.Whisper,
     optim = torch.optim.AdamW([snippet], lr=lr, weight_decay=0)
     scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=5, gamma=0.5)
 
-    attack_stack, attacked_data, mel, logits, pbar, avg_valid_loss = None, None, None, None, None, None
+    attack_stack, attacked_data, mel, logits, pbar, avg_valid_loss, decoder = None, None, None, None, None, None, None
     lowest_valid_loss = torch.tensor(float("inf"))
     curr_patience = patience
     best_snippet = snippet.detach().clone()
     
     target_id, sot_ids = _get_ids(model)
+    
+    if forwardMethod.__name__ == "forward_auto":
+        decoder = GreedyDecoder(0.0, eot=target_id)
 
     # display attack method and snippet for sanity check
     print(f"Prepare method: {prepare_method.name}")
@@ -127,8 +131,11 @@ def train(model: whisper.model.Whisper,
                 pbar.set_postfix_str(f"Iter {itera}, Training Batch {batch_no + 1}/{num_training_batches}")
 
                 batch = batch.to(model.device)
-                loss = forward(model, snippet, batch, prepare_method, sot_ids, target_id)
-                
+                if decoder:
+                    loss = forwardMethod(model, snippet, batch, decoder, prepare_method, sot_ids, target_id)
+                else:
+                    loss = forwardMethod(model, snippet, batch, prepare_method, sot_ids, target_id)
+                    
                 # get training metrics
                 total_cuda_usage_iter += gpu.get_cuda_usage()
                 avg_training_loss += loss.detach()
@@ -150,6 +157,9 @@ def train(model: whisper.model.Whisper,
                     with torch.no_grad():
                         seq_length = len(model.transcribe(attacked_data.squeeze(), language="en", condition_on_previous_text=False, fp16=True)["text"])
                         train_success[idx] = train_success.get(idx, []) + [seq_length]
+                
+                gc.collect()
+    torch.cuda.empty_cache()
             
             snippets.append(snippet.detach().clone())
             avg_training_loss /= len(train_data)
@@ -159,7 +169,10 @@ def train(model: whisper.model.Whisper,
             with torch.no_grad():
                 for batch_no, (v, idx) in enumerate(valid_data):
                     pbar.set_postfix_str(f"Iter {itera}, Validation Batch {batch_no + 1}/{num_valid_batches}")
-                    avg_valid_loss += forward(model, snippet, v, prepare_method, sot_ids, target_id)
+                    if decoder:
+                        avg_valid_loss += forwardMethod(model, snippet, v, decoder, prepare_method, sot_ids, target_id)
+                    else:
+                        avg_valid_loss += forwardMethod(model, snippet, v, prepare_method, sot_ids, target_id)
                     
                     if valid_success:
                         seq_length = len(model.transcribe(attacked_data_valid.squeeze(), language="en", condition_on_previous_text=False, fp16=True)["text"])
@@ -248,11 +261,36 @@ def train(model: whisper.model.Whisper,
 
 def forward(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, prepare_method: PrepareMethod, sot_ids: Tensor, target_id: int) -> Tensor:
     audio = audio.to(model.device)
-    attacked_data_valid = prepare_method(snippet, audio)
-    mel_valid = audio_to_mel_batch(attacked_data_valid)
-    logits_valid = mel_to_logits_batch(model, mel_valid, sot_ids)[:,-1,:].squeeze(dim=1)
-    loss = get_loss_batch(logits_valid, target_id)
+    attacked_data = prepare_method(snippet, audio)
+    mel = audio_to_mel_batch(attacked_data)
+    logits = mel_to_logits_batch(model, mel, sot_ids)[:,-1,:].squeeze(dim=1)
+    loss = get_loss_batch(logits, target_id)
     return loss
+
+def forward_auto(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, decoder: TokenDecoder, prepare_method: PrepareMethod, sot_ids: Tensor, target_id: int) -> Tensor:
+    sum_logprobs = torch.tensor([0.0], device=model.device)
+    sf = torch.nn.Softmax(dim=2)
+    tokens = sot_ids.unsqueeze(0).to(model.device)
+    losses = []
+    completed = False
+    
+    audio = audio.to(model.device)
+    attacked_data = prepare_method(snippet, audio)
+    mel = audio_to_mel_batch(attacked_data)
+    
+    assert mel.device == tokens.device, f"Mel device: {mel.device}, Tokens device: {tokens.device}"
+    while not completed:
+        logits = model.forward(mel, tokens)
+        loss = sf(logits)[:, -1, target_id]
+        losses.append(loss)
+        tokens, completed = decoder.update(tokens, logits[:, -1, :], sum_logprobs)
+        
+    loss_stack = torch.stack(losses).squeeze()
+    final_loss = torch.sum(loss_stack * torch.arange(loss_stack.size(0), device=model.device))
+    
+    del loss_stack, losses
+    
+    return final_loss
 
 def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: PrepareMethod, test_dataset: DataLoader, clamp_ep: float, position: tuple):
     print(f"Clamp: {clamp_ep}\nPrepare Method: {prepare_method.name}\nSnippet Size: {prepare_method.snippet_size}\nPosition: {position}")

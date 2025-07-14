@@ -20,12 +20,12 @@ from IPython.display import HTML
 from . import audio
 
 @lru_cache
-def init(device: str = "cuda", size: str = "tiny.en") -> tuple:
+def init(device: str = "cuda", size: str = "tiny.en", local_files_only=True) -> tuple:
     """
     Retrieve model and processor for the approppriate size
     """
-    model = WhisperForConditionalGeneration.from_pretrained(f"openai/whisper-{size}", output_attentions=True).to(device)
-    processor = WhisperProcessor.from_pretrained(f"openai/whisper-{size}")
+    model = WhisperForConditionalGeneration.from_pretrained(f"openai/whisper-{size}", output_attentions=True, local_files_only=local_files_only).to(device)
+    processor = WhisperProcessor.from_pretrained(f"openai/whisper-{size}", local_files_only=local_files_only)
     return model, processor
 
 @lru_cache
@@ -56,9 +56,9 @@ def plot_attns(attns: Tensor, rows: int, cols: int,
     """
     Plot the attention maps in a grid
     """
-    attns = [a.cpu().squeeze(0) for a in attns]
+    attns = attns.cpu().squeeze()
     
-    blocks = len(attns)
+    blocks = attns.size(0)
     heads = attns[0].size(0)
     assert rows * cols == blocks * heads
     
@@ -151,7 +151,7 @@ def get_spikes(attn: Tensor, lim: float) -> tuple:
     return indices, seconds
 
 @lru_cache
-def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6), filename: str = None, draw_on_mel: bool = True) -> None:
+def plot_spikes(audio: Tensor, attn: Tensor, lim: float, cmap = "viridis", figsize: tuple = (20, 6), filename: str = None, draw_on_mel: bool = True) -> None:
     """
     PLot the attention map, waveform and log mel spectrograms and indicate attention spikes on waveform
     """
@@ -160,7 +160,7 @@ def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6
     ax[1, 0].remove()
     ax[1, 1].remove()
     
-    sns.heatmap(attn.detach().cpu(), cmap="viridis", ax=ax[0, 0])
+    sns.heatmap(attn.detach().cpu(), cmap=cmap, ax=ax[0, 0])
     ax[0, 0].set_title("Attention Map")
     ax[0, 0].set_xlabel("Encoder tokens (0.02s each)")
     
@@ -190,6 +190,3 @@ def plot_spikes(audio: Tensor, attn: Tensor, lim: float, figsize: tuple = (20, 6
         plt.savefig(filename)
     plt.tight_layout()
     plt.show()
-    
-if __name__ == "__main__":
-    print(f"{__file__} compilable!")

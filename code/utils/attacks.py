@@ -90,6 +90,3 @@ class PrepareOverlayMu(PrepareMethod):
         example = F.pad(example, (0, snippet.size(1) - example.size(1)), "constant", 0)
         snippet = snippet.repeat(example.size(0), 1)
         return mu_law(snippet + example)
-
-if __name__ == "__main__":
-    print(f"{__file__} compilable!")

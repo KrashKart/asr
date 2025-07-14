@@ -70,13 +70,18 @@ def register_at_decoder_block(model: Whisper, hook_creator: Hook, block: int, hl
     h = model.model.decoder.layers[block].register_forward_hook(hook_creator(*args))
     hl.append(h)
     return h
-        
+
 def register_correction_hook(model: Whisper, block: int, token: int, hl: List[RemovableHandle]) -> RemovableHandle:
     h = model.model.decoder.layers[block].register_forward_hook(correction_hook(block, token))
     hl.append(h)
     return h
 
-def register_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: int = 1) -> RemovableHandle:
+def register_encoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: int = 1) -> RemovableHandle:
+    h = model.model.encoder.embed_tokens.register_forward_hook(hook_creator(alpha))
+    hl.append(h)
+    return h
+
+def register_decoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: int = 1) -> RemovableHandle:
     h = model.model.decoder.embed_tokens.register_forward_hook(hook_creator(alpha))
     hl.append(h)
     return h
