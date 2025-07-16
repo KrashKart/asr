@@ -51,9 +51,9 @@ def correction_hook(block: int, token: int, activations: IntTensorDict):
     activation_count = 0
     def hook(module, args, out):
         nonlocal activation_count
-        activation_count += 1
         if activation_count == token:
             out = activations[block][token]
+        activation_count += 1
         return out
     return hook
 
@@ -77,7 +77,7 @@ def register_correction_hook(model: Whisper, block: int, token: int, hl: List[Re
     return h
 
 def register_encoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: int = 1) -> RemovableHandle:
-    h = model.model.encoder.embed_tokens.register_forward_hook(hook_creator(alpha))
+    h = model.model.encoder.embed_positions.register_forward_hook(hook_creator(alpha))
     hl.append(h)
     return h
 

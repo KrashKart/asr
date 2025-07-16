@@ -8,6 +8,16 @@ def print_cuda_usage(msg: str = "") -> None:
 def get_cuda_usage() -> Tensor:
     return torch.cuda.memory_allocated(0)/(1024 ** 3)
 
+def get_total_memory(*tensors: Tensor) -> float:
+    return [t.element_size() * t.nelement() for t in tensors]
+
+def cleanup(verbose: bool = False) -> None:
+    gc.collect()
+    torch.cuda.empty_cache()
+    gc.collect()
+    if verbose:
+        print_cuda_usage("GPU Cleared: ")
+
 def clear() -> bool:
     gc.collect()
     torch.cuda.empty_cache()
