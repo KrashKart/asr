@@ -29,4 +29,5 @@ Attacks on the model involving:
 ## Defence Testing
 * Mu-Law Compression and Compression-Decompression
 * Butterworth Low-pass filter
+
 Both are in [```whisper_defence.ipynb```](code/whisper_defence.ipynb)
