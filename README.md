@@ -24,7 +24,7 @@ Attacks on the model involving:
 ## Model Analysis
 * Attention mapping (Encoder, Decoder and Cross-attentions)
 * Causal Mediation Analysis, inspired by [this paper](https://arxiv.org/abs/2202.05262) about Rank-One Model Editing ([```whisper_causal_analysis.ipynb```](code/whisper_causal_analysis.ipynb)).
-* Differential Testing on decoder hidden layers ([```differential.ipynb```](code/differential.ipynb)).
+* Differential Visualisation on encoder hidden layers ([```differential.ipynb```](code/differential.ipynb)).
 
 ## Defence Testing
 * Mu-Law Compression and Compression-Decompression
