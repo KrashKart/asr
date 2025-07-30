@@ -17,14 +17,14 @@ This repo contains five (5) categories of files:
 # Details
 ## Gradient-based attack
 Attacks on the model involving:
-* Attack on complete suppression ([```whisper_gradient.ipynb```](code/whisper_gradient.ipynb)), replicated from [here](https://github.com/rainavyas/prepend_acoustic_attack)
-* Attack on partial suppression ([```whisper_gradient_multi.ipynb```](code/whisper_gradient_multi.ipynb))
-* Attack on complete suppression with Dual Space, Momentum Iterative Fast Gradient Sign Method, or DS-MI-FGSM ([```whisper_dsmifgsm.ipynb```](code/whisper_dsmifgsm.ipynb))
+* Attack on complete suppression ([```whisper_gradient.ipynb```](code/whisper_gradient.ipynb)), replicated from [here](https://github.com/rainavyas/prepend_acoustic_attack).
+* Attack on partial suppression ([```whisper_gradient_multi.ipynb```](code/whisper_gradient_multi.ipynb)).
+* Attack on complete suppression with Dual Space, Momentum Iterative Fast Gradient Sign Method, or DS-MI-FGSM ([```whisper_dsmifgsm.ipynb```](code/whisper_dsmifgsm.ipynb)).
 
 ## Model Analysis
 * Attention mapping (Encoder, Decoder and Cross-attentions)
-* Causal Mediation Analysis, inspired by this paper ([```whisper_causal_analysis.ipynb```](code/whisper_causal_analysis.ipynb))
-* Differential Testing on decoder hidden layers ([```differential.ipynb```](code/differential.ipynb))
+* Causal Mediation Analysis, inspired by [this paper](https://arxiv.org/abs/2202.05262) about Rank-One Model Editing ([```whisper_causal_analysis.ipynb```](code/whisper_causal_analysis.ipynb)).
+* Differential Testing on decoder hidden layers ([```differential.ipynb```](code/differential.ipynb)).
 
 ## Defence Testing
 * Mu-Law Compression and Compression-Decompression
