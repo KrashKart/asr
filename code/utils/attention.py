@@ -54,7 +54,10 @@ def plot_attns(attns: Tensor, rows: int, cols: int,
                figsize: Optional[tuple] = None, cmap: str = "viridis",
                filename: Optional[str] = None) -> None:
     """
-    Plot the attention maps in a grid
+    Plot the attention maps by heads in a grid. Optionally saves the attention images under filename if specified, else will not save.
+    
+    The product of rows and cols must equal the total heads in attns, i.e. if there are 4 layers and 6 heads, there
+    are 24 total heads and rows * cols must equal 24
     """
     attns = attns.cpu().squeeze()
     
@@ -85,10 +88,13 @@ def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
                           figsize: Optional[tuple] = None, cmap: str = "viridis",
                           filename: Optional[str] = None) -> None:
     """
-    Plot the attention maps in a grid
+    Plot the attention maps by heads in a grid. Optionally saves the attention images under filename if specified, else will not save.
+    
+    The product of rows and cols must equal the total heads in attns, i.e. if there are 4 layers and 6 heads, there
+    are 24 total heads and rows * cols must equal 24
     """
     assert rows * cols == attns.size(0)
-    attns_list = [a.cpu().squeeze(0) for a in attns]
+    attns = attns.cpu().squeeze()
     
     if not figsize:
         figsize = (cols * 10, rows * 10)
@@ -98,7 +104,7 @@ def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
     
     for idx in pbar:
         i, j = idx // cols, idx % cols
-        sns.heatmap(attns_list[idx], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
+        sns.heatmap(attns[idx, ...], cmap="viridis", ax=ax[i][j], vmin=vmin, vmax=vmax)
         ax[i][j].set_title(f"Iter {idx + 1}")
         pbar.refresh()
 
@@ -108,6 +114,9 @@ def plot_attns_over_iters(attns: Tensor, rows: int, cols: int,
     
 @lru_cache
 def smoothen(frames, factor=5):
+    """
+    Helper function to generate deltas to create smooth animations
+    """
     result = []
     for i in range(frames.size(0)):
         if i != 0:
@@ -124,7 +133,7 @@ def plot_attns_iters_anim(attns,
                           figsize: tuple = (5, 5), cmap: str = "viridis",
                           interval: int = 500) -> None:
     """
-    Plot the attention maps over iterations as animation
+    Plot the attention maps over attack training iterations as an animation
     """
     attns = attns.squeeze().cpu()
     fig, ax = plt.subplots(figsize=figsize)

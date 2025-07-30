@@ -9,7 +9,7 @@ from torch import Tensor
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torcheval.metrics.functional import bleu_score
+from torcheval.metrics.functional import bleu_score, word_error_rate
 
 from . import audio, gpu
 from .attacks import PrepareMethod
@@ -23,25 +23,40 @@ from tqdm import tqdm
 ################################
 
 def audio_to_mel(audio: Tensor) -> Tensor:
+    """
+    Audio Tensor -> Mel Tensor
+    """
     return whisper.pad_or_trim(whisper.log_mel_spectrogram(audio, padding=N_SAMPLES),
                               N_FRAMES)
 
 def audio_to_mel_batch(audio_batch: Tensor) -> Tensor:
+    """
+    Batched Audio Tensor -> Batched Mel Tensor
+    """
     if len(audio_batch.shape) == 1:
         audio_batch = audio_batch.unsqueeze(0)
     return torch.stack([audio_to_mel(audio) for audio in audio_batch])
 
 def mel_to_logits_batch(model: whisper.model.Whisper, mel_batch: Tensor, sot_ids: Tensor) -> Tensor:
+    """
+    (Batched) Mel Tensor -> model.forward -> Logits Tensor
+    """
     sot_ids = sot_ids.unsqueeze(0).expand(mel_batch.size(0), -1).to(model.device)
     return model.forward(mel_batch, sot_ids)
 
 def get_loss_batch(logits: Tensor, target: Tensor) -> Tensor:
+    """
+    Logits Tensor -> Loss
+    """
     sf = torch.nn.Softmax(dim=1)
     log_probs = torch.log(sf(logits))
     tgt_probs = log_probs[:,target].squeeze()
-    return -1 * torch.mean(tgt_probs)
+    return -1 * torch.mean(tgt_probs) # if logits is batched, then returns mean neg log prob of that batch
 
 def _get_ids(model: whisper.model.Whisper) -> tuple:
+    """
+    Extract the end- and start-of-sequence token ids for generation and loss calculation
+    """
     tokenizer = get_tokenizer(model.is_multilingual, num_languages=model.num_languages, language="en", task="transcribe")
     sot_ids = torch.tensor(tokenizer.sot_sequence_including_notimestamps, requires_grad=False)
     return tokenizer.eot, sot_ids
@@ -56,7 +71,32 @@ def train(model: whisper.model.Whisper, forwardMethod,
             writer: Optional[SummaryWriter] = None,
             train_success: Optional[dict] = None, valid_success: Optional[dict] = None,
             lr: float = 1e-3,
-            iter_limit: Optional[int] = None, mins_limit: Optional[int] = None, patience: Optional[int] = None, clamp_epsilon: Optional[float] = None) -> torch.Tensor:
+            iter_limit: Optional[int] = None, mins_limit: Optional[int] = None, patience: Optional[int] = None, clamp_epsilon: Optional[float] = None, gap: float = 0.0) -> tuple:
+    """
+    Holy meatballs.
+    
+    Arguments:
+        model          : Whisper Model to train on.
+        forwardMethod  : Either forward (complete suppresion) or forward_auto (partial suppression).
+        train_data     : Train data mounted to PyTorch DataLoader.
+        valid_data     : Validation data mounted to PyTorch DataLoader..
+        prepare_method : method of applying snippet to audio. Must be from attacks.py.
+        writer         : Tensorboard writer. If None, doesn't write to Tensorboard.
+        train_success  : Tracks which train examples are successfully attacked and which are not per iteration. If None, does not track.
+        valid_success  : Tracks which validation examples are successfully attacked and which are not per iteration. If None, does not track.
+        lr             : Learning rate for optimizer. Recommended 1e-3.
+        iter_limit     : Iteration limit to halt training. If None, does not halt training on iters.
+        mins_limit     : Time limit in minutes to halt training. If None, does not halt training on time.
+        patience       : Patience for early stopping. If Validation Loss increases or decreases by gap (see gap parameter) for {patience} iterations in a row, then stops training.
+        clamp_epsilon  : Clamp Limits for the snippet. If None, does not clamp snippet at all.
+        gap            : The minimum validation loss difference between iterations to be classified as "convergence", i.e. if loss_i and loss_(i-1) differ by {gap}, then decrease patience/terminate training.
+
+    Returns:
+        best_snippet   : Best snippet judged by validation loss
+        snippets       : list of snippets across training iterations
+        train_success  : Dictionary of success across iterations for each training example. If None, returns None.
+        valid_success  : Dictionary of success across iterations for each validation example. If None, returns None.
+    """
     
     torch.autograd.set_detect_anomaly(False)
     loss = torch.tensor(float("inf"), requires_grad=True)
@@ -79,7 +119,7 @@ def train(model: whisper.model.Whisper, forwardMethod,
     scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=5, gamma=0.5)
 
     attack_stack, attacked_data, mel, logits, pbar, avg_valid_loss, decoder = None, None, None, None, None, None, None
-    lowest_valid_loss = torch.tensor(float("inf"))
+    lowest_valid_loss = float("inf")
     curr_patience = patience
     best_snippet = snippet.detach().clone()
     
@@ -180,9 +220,8 @@ def train(model: whisper.model.Whisper, forwardMethod,
                         valid_success[idx] = valid_success.get(idx, []) + [seq_length] 
             avg_valid_loss /= num_valid_batches
             avg_valid_loss = avg_valid_loss.item()
-            
             # track lowest valid loss and save the snippet with lowest valid loss
-            if avg_valid_loss >= lowest_valid_loss:
+            if -gap <= avg_valid_loss - lowest_valid_loss <= gap or avg_valid_loss > lowest_valid_loss:
                 curr_patience -= 1
             else:
                 curr_patience = patience
@@ -260,6 +299,14 @@ def train(model: whisper.model.Whisper, forwardMethod,
         return best_snippet.detach().to("cpu"), snippets, train_success, valid_success
 
 def forward(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, prepare_method: PrepareMethod, sot_ids: Tensor, target_id: int) -> Tensor:
+    """
+    model.forward equivalent for complete suppression. Gets neg log loss of first generated token.
+    
+    sot_ids   : Start-of-sequence ids necessary to kickstart token generation.
+    target_id : Target id of the token you wish to maximise probability for.
+    
+    Other arguments are covered in train()
+    """
     audio = audio.to(model.device)
     attacked_data = prepare_method(snippet, audio)
     mel = audio_to_mel_batch(attacked_data)
@@ -267,19 +314,28 @@ def forward(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, prepar
     loss = get_loss_batch(logits, target_id)
     return loss
 
-def forward_auto(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, 
+def forward_multi(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor, 
                  decoder: TokenDecoder, 
                  prepare_method: PrepareMethod, 
                  sot_ids: Tensor, target_id: int,
-                 token_limit: int = 10) -> Tensor:
+                 token_limit: int = 5) -> Tensor:
+    
+    """
+    model.forward equivalent for partial suppression. Gets mean neg log loss of first {token_limit} generated tokens.
+    
+    decoder     : TokenDecoder instance from the Whisper library. You can customise search options for the decoder as well.
+    sot_ids     : Start-of-sequence ids necessary to kickstart token generation.
+    target_id   : Target id of the token you wish to maximise probability for.
+    token_limit : Number of tokens to allow model to generate before forcing end-of-sequence token.
+    
+    Other arguments are covered in train()
+    """
     
     sum_logprobs = torch.tensor([0.0], device=model.device)
     sf = torch.nn.Softmax(dim=1)
     tokens = sot_ids.unsqueeze(0).to(model.device)
     final_loss = 0.0
-    completed = False
-    running_sum = sum([t for t in range(1, token_limit)])
-    
+    completed = False    
     audio = audio.to(model.device)
     attacked_data = prepare_method(snippet, audio)
     mel = audio_to_mel_batch(attacked_data)
@@ -289,13 +345,22 @@ def forward_auto(model: whisper.model.Whisper, snippet: Tensor, audio: Tensor,
     counter = 0
     while not completed and counter < token_limit:
         logits = model.forward(mel, tokens)[:, -1, :]
-        final_loss += torch.log(sf(logits)[:, target_id]) * ((token_limit - counter) / running_sum)
+        final_loss += torch.log(sf(logits)[:, target_id])
         tokens, completed = decoder.update(tokens, logits, sum_logprobs)
         counter += 1
 
-    return -final_loss
+    return -final_loss / token_limit
 
 def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: PrepareMethod, test_dataset: DataLoader, clamp_ep: float, position: tuple):
+    """
+    Evaluates the attack on test dataset on Empty (rate of empty transcriptions), ASL (Average Sequence Length), BLEU score and WER (Word Error Rate).
+    For empty transcriptions, define BLEU score as 0.
+    Also prints diagnostics for Non-Empty ASL and cumulative values for each metric except WER.
+    
+    test_dataset: Test examples mounted onto PyTorch DataLoader
+    clamp_ep: Clamp limits (for display)
+    position: Position of application of attack snippet (for display)
+    """
     print(f"Clamp: {clamp_ep}\nPrepare Method: {prepare_method.name}\nSnippet Size: {prepare_method.snippet_size}\nPosition: {position}")
     empty_counter = 0
     char_counter = 0
@@ -303,6 +368,7 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
     original_chars = 0
     non_empty = 0
     avg_bleu_score = 0
+    wer = 0
 
     snippet = snippet.to(model.device)
     pbar = tqdm(range(len(test_dataset)), desc="Inference")
@@ -315,6 +381,8 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
         if isinstance(answer, tuple) or isinstance(answer, list):
             answer = answer[0]
         if answer != "ignore_time_segment_in_scoring":
+            if example.dim() == 1:
+                example = example.unsqueeze(0)
             attacked_example = prepare_method(snippet, example.to(model.device))
             transcription = model.transcribe(attacked_example.squeeze(), language="en", condition_on_previous_text=False, fp16=True)["text"].strip()
 
@@ -323,6 +391,7 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
             else:
                 non_empty += 1
                 avg_bleu_score += bleu_score(transcription, [answer], n_gram=1)
+            wer += word_error_rate(transcription, answer)
             char_counter += len(transcription.strip())
             original_chars += len(answer)
             total_examples += 1
@@ -335,4 +404,5 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
     print(f"Total valid examples: {total_examples}")
     print(f"Success rate (Empty): {empty_counter/total_examples}")
     print(f"Success rate (ASL): {char_counter/total_examples} (attacked) out of {original_chars/total_examples} (original)")
-    print(f"Average Bleu Score: {'Undefined' if not non_empty else avg_bleu_score / non_empty}")
+    print(f"Average Bleu Score: {avg_bleu_score / total_examples}")
+    print(f"Average WER: {wer / total_examples}")

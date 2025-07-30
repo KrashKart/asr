@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+from . import audio
 
 """
 every attack preparation method must:
@@ -71,15 +72,23 @@ class PrepareOverlayFront(PrepareMethod):
         snippet = snippet.repeat(example.size(0), 1)
         return snippet + example
                          
+class PrepareFrontMuComp(PrepareMethod):
+    def __init__(self, snippet_size=(1, 10_240)):
+        super().__init__(snippet_size, "prepare_front_mu_comp")
+    
+    def __call__(self, snippet, example):
+        self.check_dims(snippet, example)
+        snippet = snippet.repeat(example.size(0), 1)
+        return audio.mu_law(torch.cat([snippet, example], dim=1))
+    
 class PrepareFrontMu(PrepareMethod):
-    def __init__(self, snippet_size=(1, 480_000)):
+    def __init__(self, snippet_size=(1, 10_240)):
         super().__init__(snippet_size, "prepare_front_mu")
     
     def __call__(self, snippet, example):
         self.check_dims(snippet, example)
-        example = F.pad(example, (0, snippet.size(1) - example.size(1)), "constant", 0)
         snippet = snippet.repeat(example.size(0), 1)
-        return mu_law(torch.cat([snippet, example], dim=1))
+        return audio.mu_comp_decomp(torch.cat([snippet, example], dim=1))
                          
 class PrepareOverlayMu(PrepareMethod):
     def __init__(self, snippet_size=(1, 480_000)):
@@ -90,3 +99,33 @@ class PrepareOverlayMu(PrepareMethod):
         example = F.pad(example, (0, snippet.size(1) - example.size(1)), "constant", 0)
         snippet = snippet.repeat(example.size(0), 1)
         return mu_law(snippet + example)
+
+class PrepareFrontLowpass(PrepareMethod):
+    def __init__(self, snippet_size=(1, 10_240), cutoff=6000):
+        super().__init__(snippet_size, "prepare_front_lowpass")
+        self.cutoff = cutoff
+    
+    def __call__(self, snippet, example):
+        self.check_dims(snippet, example)
+        snippet = snippet.repeat(example.size(0), 1)
+        return audio.pass_filter(torch.cat([snippet, example], dim=1), "lowpass", cutoff=self.cutoff)
+
+class PrepareFrontHighpass(PrepareMethod):
+    def __init__(self, snippet_size=(1, 10_240), cutoff=120):
+        super().__init__(snippet_size, "prepare_front_highpass")
+        self.cutoff = cutoff
+    
+    def __call__(self, snippet, example):
+        self.check_dims(snippet, example)
+        snippet = snippet.repeat(example.size(0), 1)
+        return audio.pass_filter(torch.cat([snippet, example], dim=1), "highpass", cutoff=self.cutoff)
+
+class PrepareFrontBandpass(PrepareMethod):
+    def __init__(self, snippet_size=(1, 10_240), cutoffs=[120, 6000]):
+        super().__init__(snippet_size, "prepare_front_highpass")
+        self.cutoffs = cutoffs
+    
+    def __call__(self, snippet, example):
+        self.check_dims(snippet, example)
+        snippet = snippet.repeat(example.size(0), 1)
+        return audio.pass_filter(torch.cat([snippet, example], dim=1), "bandpass", cutoffs=self.cutoffs)
