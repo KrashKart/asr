@@ -19,7 +19,7 @@ This repo contains five (5) categories of files:
 Attacks on the model involving:
 * Attack on complete suppression ([```whisper_gradient.ipynb```](code/whisper_gradient.ipynb)), replicated from [here](https://github.com/rainavyas/prepend_acoustic_attack).
 * Attack on partial suppression ([```whisper_gradient_multi.ipynb```](code/whisper_gradient_multi.ipynb)).
-* Attack on complete suppression with Dual Space, Momentum Iterative Fast Gradient Sign Method, or DS-MI-FGSM ([```whisper_dsmifgsm.ipynb```](code/whisper_dsmifgsm.ipynb)).
+* Attack on complete suppression with Dual Space, Momentum Iterative Fast Gradient Sign Method, or DS-MI-FGSM (Edit: file was removed).
 
 ## Model Analysis
 * Attention mapping (Encoder, Decoder and Cross-attentions)
