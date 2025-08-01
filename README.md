@@ -1,5 +1,5 @@
 # Investigating the Vulnerabilities of Automatic Speech Recognition (ASR) Models
-This is the repo used for my DSO Internship Project (named titularly), also under the National University of Singapore's Student Internship Programme (NUS SIP I, module code CP3200). It contains most of my exploratory work and notebooks used during experimentation.
+This is the repo used for my DSO Internship Project (named titularly), also under the National University of Singapore's Student Internship Programme (CP3200: SIP I). It contains most of my exploratory work and notebooks used during experimentation.
 
 ## arXiv
 :construction: In progress!! (I hope it works) :building_construction:
