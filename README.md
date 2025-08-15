@@ -2,7 +2,7 @@
 This is the repo used for my DSO Internship Project (named titularly), also under the National University of Singapore's Student Internship Programme (CP3200: SIP I). It contains most of my exploratory work and notebooks used during experimentation.
 
 ## arXiv
-:construction: In progress!! (I hope it works) :building_construction:
+The preprint on arXiv can be found [here](https://arxiv.org/abs/2508.09994)!
 
 # Repo Breakdown
 This repo contains five (5) categories of files:
