@@ -24,3 +24,5 @@ startup.sh
 *.mp4
 *.avi
 *.pt
+
+asr/
