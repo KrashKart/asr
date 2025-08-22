@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torcheval.metrics.functional import bleu_score, word_error_rate
+from torchmetrics.audio.pesq import PerceptualEvaluationSpeechQuality as PESQ
 
 from . import audio, gpu
 from .attacks import PrepareMethod
@@ -369,6 +370,9 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
     non_empty = 0
     avg_bleu_score = 0
     wer = 0
+    pesq_score = 0
+
+    pesq = PESQ(fs = 16000, mode = "wb", keep_same_device = True)
 
     snippet = snippet.to(model.device)
     pbar = tqdm(range(len(test_dataset)), desc="Inference")
@@ -392,10 +396,11 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
                 non_empty += 1
                 avg_bleu_score += bleu_score(transcription, [answer], n_gram=1)
             wer += word_error_rate(transcription, answer)
+            pesq_score += pesq(attacked_example, example)
             char_counter += len(transcription.strip())
             original_chars += len(answer)
             total_examples += 1
-            pbar.set_postfix_str(f"Valid Examples: {total_examples} | Empty Sequences: {empty_counter} | Total SL: {char_counter} | Non-empty ASL: {'Undefined' if not non_empty else char_counter / non_empty} | Total Bleu Score: {avg_bleu_score}")
+            pbar.set_postfix_str(f"Valid Examples: {total_examples} | Non-empty ASL: {'Undefined' if not non_empty else char_counter / non_empty}")
 
         example.to("cpu")
 
@@ -406,3 +411,4 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
     print(f"Success rate (ASL): {char_counter/total_examples} (attacked) out of {original_chars/total_examples} (original)")
     print(f"Average Bleu Score: {avg_bleu_score / total_examples}")
     print(f"Average WER: {wer / total_examples}")
+    print(f"Average PESQ: {pesq_score / total_examples}")
