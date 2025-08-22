@@ -372,7 +372,7 @@ def evaluate(model: whisper.model.Whisper, snippet: Tensor, prepare_method: Prep
     wer = 0
     pesq_score = 0
 
-    pesq = PESQ(fs = 16000, mode = "wb", keep_same_device = True)
+    pesq = PESQ(fs = 16000, mode = "wb")
 
     snippet = snippet.to(model.device)
     pbar = tqdm(range(len(test_dataset)), desc="Inference")
