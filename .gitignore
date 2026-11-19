@@ -8,16 +8,14 @@
 ~
 
 **/__pycache__/
-
 **/.ipynb_checkpoints/
+*.egg-info/
+.venv/
+.pytest_cache/
 
-code/tensors/
-
-libs/
-runs/
-snippets/
-tedlium/
-graphs/
+# data and generated artefacts (see src/asrvuln/config.py)
+data/
+outputs/
 
 startup.sh
 

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asrvuln"
+version = "0.1.0"
+description = "Investigating the vulnerabilities of Automatic Speech Recognition (Whisper) models: adversarial attacks, model analysis and defences."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "torchaudio",
+    "openai-whisper",
+    "transformers",
+    "datasets",
+    "soundfile",
+    "torcheval",
+    "torchmetrics",
+    "pystoi",
+    "scipy",
+    "numpy",
+    "librosa",
+    "matplotlib",
+    "seaborn",
+    "tqdm",
+    "tensorboard",
+    "ipython",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
