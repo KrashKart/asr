@@ -1,0 +1,32 @@
+# --- core ---
+torch
+torchaudio
+numpy
+scipy
+soundfile
+
+# --- models ---
+openai-whisper
+transformers
+
+# --- data ---
+datasets
+librosa
+
+# --- metrics ---
+torcheval
+torchmetrics
+pystoi               # backend for torchmetrics' STOI (pure Python)
+tensorboard
+tqdm
+matplotlib
+seaborn
+
+# --- notebooks / dev ---
+ipython
+ipykernel
+jupyter
+pytest
+
+# --- this repo, editable (makes `import asrvuln` work everywhere) ---
+-e .
