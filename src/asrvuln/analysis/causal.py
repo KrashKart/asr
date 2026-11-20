@@ -1,5 +1,5 @@
 """
-Causal mediation analysis on the HF Whisper decoder, inspired by ROME (arXiv:2202.05262).
+Causal Mediation Analysis, inspired by ROME (arXiv:2202.05262).
 
 1. Clean run: record every decoder block's output at every generation step.
 2. Corrupted run: add Gaussian noise to the decoder token embeddings.
@@ -36,10 +36,8 @@ def reset(*args: Union[List[RemovableHandle], IntTensorDict]) -> None:
         container.clear()
         assert not container, f"{container} cannot be cleared!"
 
-
 def append_dict(d: IntTensorDict, key: int, value: Tensor) -> None:
     d.setdefault(key, []).append(value)
-
 
 def remove_hook_list(hook_list: List[RemovableHandle]) -> None:
     for h in hook_list:
@@ -56,13 +54,11 @@ def clean_hook(idx: int, activations: IntTensorDict):
         return output
     return hook
 
-
 def corrupt_embed_hook(alpha: Number = 1):
     def hook(module, args, output):
         epsilons = torch.normal(0, alpha * torch.std(output.squeeze()).item(), size=tuple(output.shape)).to(output.device)
         return output + epsilons
     return hook
-
 
 def correction_hook(block: int, token: int, activations: IntTensorDict):
     activation_count = 0
@@ -82,22 +78,18 @@ def register_all_decoder_blocks(model: Whisper, hook_creator: Hook, activations:
     for i, block in enumerate(model.model.decoder.layers):
         hl.append(block.register_forward_hook(hook_creator(i, activations)))
 
-
 def register_at_decoder_block(model: Whisper, hook_creator: Hook, block: int, hl: List[RemovableHandle], *args: Any) -> RemovableHandle:
     h = model.model.decoder.layers[block].register_forward_hook(hook_creator(*args))
     hl.append(h)
     return h
 
-
 def register_correction_hook(model: Whisper, block: int, token: int, activations: IntTensorDict, hl: List[RemovableHandle]) -> RemovableHandle:
     return register_at_decoder_block(model, correction_hook, block, hl, block, token, activations)
-
 
 def register_encoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: Number = 1) -> RemovableHandle:
     h = model.model.encoder.embed_positions.register_forward_hook(hook_creator(alpha))
     hl.append(h)
     return h
-
 
 def register_decoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List[RemovableHandle], alpha: Number = 1) -> RemovableHandle:
     h = model.model.decoder.embed_tokens.register_forward_hook(hook_creator(alpha))
@@ -105,7 +97,7 @@ def register_decoder_embedding_hook(model: Whisper, hook_creator: Hook, hl: List
     return h
 
 #####################################
-# Inference and the full trace
+# Inference
 #####################################
 
 def infer_with_probs(audio: Tensor, model: Whisper, processor) -> tuple:
@@ -119,7 +111,6 @@ def infer_with_probs(audio: Tensor, model: Whisper, processor) -> tuple:
 
     decoded = processor.decode(res["sequences"].squeeze(), skip_special_tokens=True)
     return decoded, res, eos_probs
-
 
 def run_causal_trace(clean_model: Whisper, corrupted_model: Whisper, processor, wave: Tensor,
                      iters: int = 10, alpha: Number = 3) -> Dict[str, Tensor]:

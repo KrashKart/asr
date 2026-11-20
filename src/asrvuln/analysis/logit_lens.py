@@ -9,7 +9,6 @@ from torch import Tensor
 
 from .attention import inference
 
-
 @torch.no_grad()
 def decoder_bypass(model, processor, audio: Tensor) -> Optional[Tensor]:
     """
@@ -21,7 +20,6 @@ def decoder_bypass(model, processor, audio: Tensor) -> Optional[Tensor]:
     """
     eot_id = processor.tokenizer.eos_token_id
     _, res, _, _, _, _ = inference(audio, model, processor)
-    # key access: inference() may return a plain dict (transformers 5.x with token timestamps)
     hidden = torch.stack([torch.stack(r) for r in res["decoder_hidden_states"][1:]]).squeeze()
     if hidden.dim() == 2:
         return None

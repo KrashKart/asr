@@ -1,5 +1,5 @@
 """
-Analysis of *why* the attack works (HuggingFace Whisper models, see ``models.load_hf_whisper``).
+Secondary Analysis.
 
     attention   inference with attentions, attention stacking helpers, attention spikes
     causal      causal mediation analysis (corrupt / restore decoder blocks)
